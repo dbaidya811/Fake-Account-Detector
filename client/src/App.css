@@ -1,0 +1,82 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.footer {
+  margin-top: auto;
+}
+
+.social-icon {
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+}
+
+.facebook-icon {
+  color: #1877f2;
+}
+
+.instagram-icon {
+  color: #e1306c;
+}
+
+.twitter-icon {
+  color: #1da1f2;
+}
+
+.result-card {
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-5px);
+}
+
+.fake-account {
+  background-color: #ffebee;
+  border-color: #ef5350;
+}
+
+.real-account {
+  background-color: #e8f5e9;
+  border-color: #66bb6a;
+}
+
+.indicator-high {
+  color: #d32f2f;
+}
+
+.indicator-medium {
+  color: #f57c00;
+}
+
+.indicator-low {
+  color: #7cb342;
+}
+
+.confidence-meter {
+  height: 10px;
+  border-radius: 5px;
+  margin-top: 5px;
+  background-color: #e0e0e0;
+}
+
+.confidence-value {
+  height: 100%;
+  border-radius: 5px;
+}
+
+.high-confidence {
+  background-color: #d32f2f;
+}
+
+.medium-confidence {
+  background-color: #f57c00;
+}
+
+.low-confidence {
+  background-color: #7cb342;
+}
