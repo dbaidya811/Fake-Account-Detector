@@ -12,7 +12,12 @@ const PORT = process.env.PORT || 10000;
 
 // CORS configuration for production
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'https://fake-account-detector.vercel.app',
+  origin: [
+    process.env.CORS_ORIGIN || 'https://fake-account-detector.vercel.app',
+    'https://fake-account-detector.vercel.app',
+    'https://fake-account-detector-git-master-dbaidya811.vercel.app',
+    'https://fake-account-detector-dbaidya811.vercel.app'
+  ],
   credentials: true,
   optionsSuccessStatus: 200
 };

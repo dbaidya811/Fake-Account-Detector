@@ -28,6 +28,6 @@
     }
   ],
   "env": {
-    "REACT_APP_API_BASE_URL": "https://your-backend-domain.onrender.com"
+    "REACT_APP_API_BASE_URL": "https://fake-account-detector.onrender.com"
   }
 } 
