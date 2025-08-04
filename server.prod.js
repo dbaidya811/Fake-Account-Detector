@@ -9,8 +9,24 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'https://fake-account-detector.vercel.app', // Vercel frontend
+    'http://localhost:3000' // Local development
+  ],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
+// Apply CORS with the specified options
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
 // API Routes
