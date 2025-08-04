@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Badge, ListGroup/*, ProgressBar*/ } from 'react-bootstrap';
+import { Card, Badge, ListGroup, ProgressBar } from 'react-bootstrap';
 import { FaFacebook, FaInstagram, FaTwitter, FaCheckCircle, FaTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
 
 const ResultsDisplay = ({ results }) => {
