@@ -36,7 +36,7 @@ This guide will help you deploy your Fake Account Detector application to Render
    **Basic Settings:**
    - **Name:** `fake-account-detector-backend`
    - **Environment:** `Node`
-   - **Build Command:** `npm install`
+   - **Build Command:** `npm install && cd client && npm install`
    - **Start Command:** `npm start`
    - **Plan:** `Free`
 
@@ -127,14 +127,14 @@ This guide will help you deploy your Fake Account Detector application to Render
 
 ### Common Issues
 
-1. **CORS Errors**
+1. **Build Failures**
+   - **Issue:** `react-scripts: not found`
+   - **Solution:** Ensure `client/package.json` has `react-scripts` in dependencies
+   - **Fix:** The build command now installs both server and client dependencies
+
+2. **CORS Errors**
    - Ensure `CORS_ORIGIN` in Render matches your Vercel domain exactly
    - Check that the environment variable is set correctly
-
-2. **Build Failures**
-   - Check that all dependencies are in `package.json`
-   - Verify Node.js version compatibility
-   - Check build logs for specific errors
 
 3. **API Timeouts**
    - Render free tier has limitations
