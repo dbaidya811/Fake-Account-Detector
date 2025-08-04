@@ -159,55 +159,65 @@ async function analyzeProfile(url, platform) {
     await page.setUserAgent(userAgent);
     
     console.log(`Navigating to URL: ${url}`);
-    try {
-      const response = await page.goto(url, { 
-        waitUntil: 'networkidle2', 
-        timeout: 60000 
-      });
-      
-      console.log(`Page loaded with status: ${response.status()}`);
-      
-      // Take a screenshot for debugging
-      await page.screenshot({ path: 'debug-screenshot.png' }).catch(e => {
-        console.log('Could not take screenshot:', e.message);
-      });
-      
-      // Wait for the page to load
-      console.log('Waiting for page to fully load...');
-      await page.waitForTimeout(5000);
-      
-      // Extract and analyze data based on the platform
-      console.log(`Starting analysis for platform: ${platform}`);
-      let analysisData;
-      switch (platform.toLowerCase()) {
-        case 'facebook':
-          analysisData = await analyzeFacebookProfile(page);
-          break;
-        case 'instagram':
-          analysisData = await analyzeInstagramProfile(page);
-          break;
-        case 'twitter':
-          analysisData = await analyzeTwitterProfile(page);
-          break;
-        default:
-          throw new Error('Unsupported platform');
-      }
-      
-      // Download and analyze profile picture if available
-      if (analysisData.hasProfilePicture && analysisData.profilePictureUrl) {
+    const response = await page.goto(url, { 
+      waitUntil: 'networkidle2', 
+      timeout: 60000 
+    });
+    
+    console.log(`Page loaded with status: ${response.status()}`);
+    
+    // Take a screenshot for debugging
+    await page.screenshot({ path: 'debug-screenshot.png' }).catch(e => {
+      console.log('Could not take screenshot:', e.message);
+    });
+    
+    // Wait for the page to load
+    console.log('Waiting for page to fully load...');
+    await page.waitForTimeout(5000);
+    
+    // Extract and analyze data based on the platform
+    console.log(`Starting analysis for platform: ${platform}`);
+    let analysisData;
+    switch (platform.toLowerCase()) {
+      case 'facebook':
+        analysisData = await analyzeFacebookProfile(page);
+        break;
+      case 'instagram':
+        analysisData = await analyzeInstagramProfile(page);
+        break;
+      case 'twitter':
+        analysisData = await analyzeTwitterProfile(page);
+        break;
+      default:
+        throw new Error('Unsupported platform');
+    }
+    
+    // Download and analyze profile picture if available
+    if (analysisData.hasProfilePicture && analysisData.profilePictureUrl) {
+      try {
         const imagePath = await downloadProfilePicture(analysisData.profilePictureUrl, platform, analysisData.username || 'unknown');
         if (imagePath) {
           analysisData.profilePictureAnalysis = await analyzeProfilePicture(imagePath);
+          // Clean up the downloaded image
+          await fs.unlink(imagePath).catch(console.error);
         }
-      } else {
-        analysisData.profilePictureAnalysis = { isHuman: false, confidence: 0, stockPhoto: false };
+      } catch (error) {
+        console.error('Error processing profile picture:', error);
+        analysisData.profilePictureAnalysis = { 
+          error: 'Failed to process profile picture',
+          details: error.message 
+        };
       }
-      
-      // Calculate fake score
-      const result = calculateFakeScore(analysisData);
-      
-      // Close the browser
-    // Calculate overall score and determine if the account is likely fake
+    } else {
+      analysisData.profilePictureAnalysis = { 
+        isHuman: false, 
+        confidence: 0, 
+        stockPhoto: false,
+        error: 'No profile picture found'
+      };
+    }
+    
+    // Calculate fake score
     const { score, indicators } = calculateFakeScore(analysisData);
     
     return {
@@ -221,11 +231,17 @@ async function analyzeProfile(url, platform) {
     };
     
   } catch (error) {
-    console.error(`Error analyzing ${platform} profile:`, error);
+    console.error('Error in analyzeProfile:', {
+      message: error.message,
+      stack: error.stack,
+      url,
+      platform
+    });
+    
     throw error;
   } finally {
     if (browser) {
-      await browser.close();
+      await browser.close().catch(console.error);
     }
   }
 }
