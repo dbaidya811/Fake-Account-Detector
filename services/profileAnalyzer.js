@@ -130,7 +130,7 @@ async function analyzeProfile(url, platform) {
   console.log(`Starting analysis for URL: ${url} (${platform})`);
   
   try {
-    // Launch browser with more detailed configuration
+    // Launch browser with simplified configuration for better compatibility
     console.log('Launching browser...');
     const launchOptions = {
       headless: true,
@@ -138,16 +138,16 @@ async function analyzeProfile(url, platform) {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
         '--disable-gpu',
-        '--remote-debugging-port=9222'
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-      dumpio: true // Enable verbose logging
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ]
     };
+    
+    // Only set executable path if it's provided
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
     
     console.log('Browser launch options:', JSON.stringify(launchOptions, null, 2));
     
@@ -156,7 +156,19 @@ async function analyzeProfile(url, platform) {
       console.log('Browser launched successfully');
     } catch (browserError) {
       console.error('Failed to launch browser:', browserError);
-      throw new Error(`Failed to launch browser: ${browserError.message}`);
+      
+      // Try with even more basic options
+      try {
+        console.log('Retrying with minimal browser options...');
+        browser = await puppeteer.launch({ 
+          headless: true,
+          args: ['--no-sandbox']
+        });
+        console.log('Browser launched with minimal options');
+      } catch (retryError) {
+        console.error('Failed to launch browser even with minimal options:', retryError);
+        throw new Error(`Failed to launch browser: ${retryError.message}. Please ensure Puppeteer is properly installed.`);
+      }
     }
     
     const page = await browser.newPage();
@@ -189,15 +201,23 @@ async function analyzeProfile(url, platform) {
       console.log(`Page loaded with status: ${response?.status()}`);
       
       // Take a screenshot for debugging
-      await page.screenshot({ path: 'debug-screenshot.png' });
-      console.log('Screenshot saved to debug-screenshot.png');
+      try {
+        await page.screenshot({ path: 'debug-screenshot.png' });
+        console.log('Screenshot saved to debug-screenshot.png');
+      } catch (screenshotError) {
+        console.error('Failed to take screenshot:', screenshotError);
+      }
       
     } catch (navError) {
       console.error('Navigation error:', navError);
       // Try to get page content to help with debugging
-      const pageContent = await page.content().catch(e => `Failed to get page content: ${e.message}`);
-      console.log('Page content length:', pageContent?.length || 0);
-      throw new Error(`Failed to load page: ${navError.message}`);
+      try {
+        const pageContent = await page.content();
+        console.log('Page content length:', pageContent?.length || 0);
+      } catch (contentError) {
+        console.error('Failed to get page content:', contentError);
+      }
+      throw new Error(`Failed to load page: ${navError.message}. The profile might be private or the URL might be invalid.`);
     }
     
     // Wait for the page to load
@@ -224,7 +244,7 @@ async function analyzeProfile(url, platform) {
       console.log('Analysis data:', JSON.stringify(analysisData, null, 2));
     } catch (analysisError) {
       console.error('Analysis error:', analysisError);
-      throw new Error(`Failed to analyze profile: ${analysisError.message}`);
+      throw new Error(`Failed to analyze profile data: ${analysisError.message}`);
     }
     
     // Download and analyze profile picture if available
@@ -282,7 +302,17 @@ async function analyzeProfile(url, platform) {
       url,
       platform
     });
-    throw error;
+    
+    // Provide more specific error messages
+    if (error.message.includes('Failed to launch browser')) {
+      throw new Error('Browser initialization failed. Please ensure all dependencies are installed correctly.');
+    } else if (error.message.includes('Failed to load page')) {
+      throw new Error('Unable to access the profile. The profile might be private, deleted, or the URL might be incorrect.');
+    } else if (error.message.includes('Failed to analyze profile data')) {
+      throw new Error('Unable to extract profile information. The page structure might have changed or the profile might be restricted.');
+    } else {
+      throw new Error(`Analysis failed: ${error.message}`);
+    }
   } finally {
     if (browser) {
       try {

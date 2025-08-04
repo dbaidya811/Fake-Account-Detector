@@ -41,15 +41,52 @@ const ProfileAnalyzer = ({ setAnalysisResults, setLoading, setError }) => {
       setError(null);
       setAnalysisResults(null);
       
+      console.log('Submitting analysis request for:', profileUrl);
+      
       const response = await axios.post('/api/analyze', { url: profileUrl });
       
+      console.log('Analysis completed successfully');
       setAnalysisResults(response.data);
     } catch (error) {
       console.error('Error analyzing profile:', error);
-      setError(
-        error.response?.data?.error ||
-        'Failed to analyze profile. Please check the URL and try again.'
-      );
+      
+      let errorMessage = 'Failed to analyze profile. Please check the URL and try again.';
+      
+      if (error.response) {
+        // Server responded with error status
+        const serverError = error.response.data?.error;
+        if (serverError) {
+          errorMessage = serverError;
+        } else {
+          switch (error.response.status) {
+            case 400:
+              errorMessage = 'Invalid URL format. Please provide a valid social media profile URL.';
+              break;
+            case 404:
+              errorMessage = 'Unable to access the profile. The profile might be private, deleted, or the URL might be incorrect.';
+              break;
+            case 408:
+              errorMessage = 'Analysis timeout - the request took too long to complete. Please try again.';
+              break;
+            case 422:
+              errorMessage = 'Unable to extract profile information. The page structure might have changed or the profile might be restricted.';
+              break;
+            case 503:
+              errorMessage = 'System temporarily unavailable. Please try again later.';
+              break;
+            default:
+              errorMessage = `Server error (${error.response.status}). Please try again later.`;
+          }
+        }
+      } else if (error.request) {
+        // Network error - no response received
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else {
+        // Other error
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
