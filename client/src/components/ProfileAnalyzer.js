@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, InputGroup } from 'react-bootstrap';
 import { FaFacebook, FaInstagram, FaTwitter, FaSearch } from 'react-icons/fa';
-import axios from 'axios';
+import axios from '../axiosConfig';
 
 const ProfileAnalyzer = ({ setAnalysisResults, setLoading, setError }) => {
   const [profileUrl, setProfileUrl] = useState('');
