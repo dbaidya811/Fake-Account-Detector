@@ -127,51 +127,86 @@ async function analyzeProfilePicture(imagePath) {
 
 async function analyzeProfile(url, platform) {
   let browser;
+  console.log(`Starting analysis for URL: ${url} (${platform})`);
+  
   try {
-    // Launch browser
-    browser = await puppeteer.launch({
+    // Launch browser with more detailed configuration
+    console.log('Launching browser...');
+    const launchOptions = {
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
+    };
     
+    console.log('Browser launch options:', JSON.stringify(launchOptions, null, 2));
+    browser = await puppeteer.launch(launchOptions);
+    
+    console.log('Browser launched, creating new page...');
     const page = await browser.newPage();
     
     // Set viewport and user agent to mimic a real browser
     await page.setViewport({ width: 1280, height: 800 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+    await page.setUserAgent(userAgent);
     
-    // Navigate to the profile URL
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    
-    // Wait for the page to load
-    await page.waitForTimeout(2000);
-    
-    // Extract and analyze data based on the platform
-    let analysisData;
-    switch (platform) {
-      case 'facebook':
-        analysisData = await analyzeFacebookProfile(page);
-        break;
-      case 'instagram':
-        analysisData = await analyzeInstagramProfile(page);
-        break;
-      case 'twitter':
-        analysisData = await analyzeTwitterProfile(page);
-        break;
-      default:
-        throw new Error('Unsupported platform');
-    }
-    
-    // Download and analyze profile picture if available
-    if (analysisData.hasProfilePicture && analysisData.profilePictureUrl) {
-      const imagePath = await downloadProfilePicture(analysisData.profilePictureUrl, platform, analysisData.username || 'unknown');
-      if (imagePath) {
-        analysisData.profilePictureAnalysis = await analyzeProfilePicture(imagePath);
+    console.log(`Navigating to URL: ${url}`);
+    try {
+      const response = await page.goto(url, { 
+        waitUntil: 'networkidle2', 
+        timeout: 60000 
+      });
+      
+      console.log(`Page loaded with status: ${response.status()}`);
+      
+      // Take a screenshot for debugging
+      await page.screenshot({ path: 'debug-screenshot.png' }).catch(e => {
+        console.log('Could not take screenshot:', e.message);
+      });
+      
+      // Wait for the page to load
+      console.log('Waiting for page to fully load...');
+      await page.waitForTimeout(5000);
+      
+      // Extract and analyze data based on the platform
+      console.log(`Starting analysis for platform: ${platform}`);
+      let analysisData;
+      switch (platform.toLowerCase()) {
+        case 'facebook':
+          analysisData = await analyzeFacebookProfile(page);
+          break;
+        case 'instagram':
+          analysisData = await analyzeInstagramProfile(page);
+          break;
+        case 'twitter':
+          analysisData = await analyzeTwitterProfile(page);
+          break;
+        default:
+          throw new Error('Unsupported platform');
       }
-    } else {
-      analysisData.profilePictureAnalysis = { isHuman: false, confidence: 0, stockPhoto: false };
-    }
-    
+      
+      // Download and analyze profile picture if available
+      if (analysisData.hasProfilePicture && analysisData.profilePictureUrl) {
+        const imagePath = await downloadProfilePicture(analysisData.profilePictureUrl, platform, analysisData.username || 'unknown');
+        if (imagePath) {
+          analysisData.profilePictureAnalysis = await analyzeProfilePicture(imagePath);
+        }
+      } else {
+        analysisData.profilePictureAnalysis = { isHuman: false, confidence: 0, stockPhoto: false };
+      }
+      
+      // Calculate fake score
+      const result = calculateFakeScore(analysisData);
+      
+      // Close the browser
     // Calculate overall score and determine if the account is likely fake
     const { score, indicators } = calculateFakeScore(analysisData);
     
