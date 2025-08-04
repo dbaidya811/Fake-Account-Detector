@@ -142,15 +142,23 @@ async function analyzeProfile(url, platform) {
         '--no-first-run',
         '--no-zygote',
         '--single-process',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--remote-debugging-port=9222'
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+      dumpio: true // Enable verbose logging
     };
     
     console.log('Browser launch options:', JSON.stringify(launchOptions, null, 2));
-    browser = await puppeteer.launch(launchOptions);
     
-    console.log('Browser launched, creating new page...');
+    try {
+      browser = await puppeteer.launch(launchOptions);
+      console.log('Browser launched successfully');
+    } catch (browserError) {
+      console.error('Failed to launch browser:', browserError);
+      throw new Error(`Failed to launch browser: ${browserError.message}`);
+    }
+    
     const page = await browser.newPage();
     
     // Set viewport and user agent to mimic a real browser
@@ -158,18 +166,39 @@ async function analyzeProfile(url, platform) {
     const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
     await page.setUserAgent(userAgent);
     
+    // Enable request/response logging
+    page.on('request', request => {
+      console.log('Request:', request.method(), request.url());
+    });
+    
+    page.on('response', response => {
+      console.log('Response:', response.status(), response.url());
+    });
+    
+    page.on('console', msg => {
+      console.log('Browser console:', msg.text());
+    });
+    
     console.log(`Navigating to URL: ${url}`);
-    const response = await page.goto(url, { 
-      waitUntil: 'networkidle2', 
-      timeout: 60000 
-    });
-    
-    console.log(`Page loaded with status: ${response.status()}`);
-    
-    // Take a screenshot for debugging
-    await page.screenshot({ path: 'debug-screenshot.png' }).catch(e => {
-      console.log('Could not take screenshot:', e.message);
-    });
+    let response;
+    try {
+      response = await page.goto(url, { 
+        waitUntil: 'domcontentloaded',
+        timeout: 30000 
+      });
+      console.log(`Page loaded with status: ${response?.status()}`);
+      
+      // Take a screenshot for debugging
+      await page.screenshot({ path: 'debug-screenshot.png' });
+      console.log('Screenshot saved to debug-screenshot.png');
+      
+    } catch (navError) {
+      console.error('Navigation error:', navError);
+      // Try to get page content to help with debugging
+      const pageContent = await page.content().catch(e => `Failed to get page content: ${e.message}`);
+      console.log('Page content length:', pageContent?.length || 0);
+      throw new Error(`Failed to load page: ${navError.message}`);
+    }
     
     // Wait for the page to load
     console.log('Waiting for page to fully load...');
@@ -178,37 +207,53 @@ async function analyzeProfile(url, platform) {
     // Extract and analyze data based on the platform
     console.log(`Starting analysis for platform: ${platform}`);
     let analysisData;
-    switch (platform.toLowerCase()) {
-      case 'facebook':
-        analysisData = await analyzeFacebookProfile(page);
-        break;
-      case 'instagram':
-        analysisData = await analyzeInstagramProfile(page);
-        break;
-      case 'twitter':
-        analysisData = await analyzeTwitterProfile(page);
-        break;
-      default:
-        throw new Error('Unsupported platform');
+    try {
+      switch (platform.toLowerCase()) {
+        case 'facebook':
+          analysisData = await analyzeFacebookProfile(page);
+          break;
+        case 'instagram':
+          analysisData = await analyzeInstagramProfile(page);
+          break;
+        case 'twitter':
+          analysisData = await analyzeTwitterProfile(page);
+          break;
+        default:
+          throw new Error(`Unsupported platform: ${platform}`);
+      }
+      console.log('Analysis data:', JSON.stringify(analysisData, null, 2));
+    } catch (analysisError) {
+      console.error('Analysis error:', analysisError);
+      throw new Error(`Failed to analyze profile: ${analysisError.message}`);
     }
     
     // Download and analyze profile picture if available
     if (analysisData.hasProfilePicture && analysisData.profilePictureUrl) {
       try {
-        const imagePath = await downloadProfilePicture(analysisData.profilePictureUrl, platform, analysisData.username || 'unknown');
+        console.log('Downloading profile picture...');
+        const imagePath = await downloadProfilePicture(
+          analysisData.profilePictureUrl, 
+          platform, 
+          analysisData.username || 'unknown'
+        );
+        
         if (imagePath) {
+          console.log('Analyzing profile picture...');
           analysisData.profilePictureAnalysis = await analyzeProfilePicture(imagePath);
           // Clean up the downloaded image
-          await fs.unlink(imagePath).catch(console.error);
+          await fs.unlink(imagePath).catch(e => 
+            console.error('Failed to delete temporary image:', e)
+          );
         }
-      } catch (error) {
-        console.error('Error processing profile picture:', error);
+      } catch (picError) {
+        console.error('Error processing profile picture:', picError);
         analysisData.profilePictureAnalysis = { 
           error: 'Failed to process profile picture',
-          details: error.message 
+          details: picError.message 
         };
       }
     } else {
+      console.log('No profile picture found');
       analysisData.profilePictureAnalysis = { 
         isHuman: false, 
         confidence: 0, 
@@ -226,8 +271,8 @@ async function analyzeProfile(url, platform) {
       analysisData,
       score,
       indicators,
-      isFake: score < 45, // Lower threshold to avoid false positives
-      confidence: Math.abs(45 - score) * 2 // Convert to a 0-100 confidence scale
+      isFake: score < 45,
+      confidence: Math.abs(45 - score) * 2
     };
     
   } catch (error) {
@@ -237,11 +282,17 @@ async function analyzeProfile(url, platform) {
       url,
       platform
     });
-    
     throw error;
   } finally {
     if (browser) {
-      await browser.close().catch(console.error);
+      try {
+        const pages = await browser.pages();
+        console.log(`Closing browser with ${pages.length} pages`);
+        await browser.close();
+        console.log('Browser closed successfully');
+      } catch (closeError) {
+        console.error('Error closing browser:', closeError);
+      }
     }
   }
 }
