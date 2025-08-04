@@ -36,14 +36,27 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
     
-    // Analyze the profile
-    const analysis = await analyzeProfile(url, platform);
+    // Analyze the profile with detailed error handling
+    console.log(`Starting analysis for ${url} (${platform})`);
+    const analysis = await analyzeProfile(url, platform).catch(err => {
+      console.error('Error in analyzeProfile:', err);
+      throw err;
+    });
+    console.log('Analysis completed successfully');
     return res.json(analysis);
   } catch (error) {
-    console.error('Error analyzing profile:', error);
+    console.error('Error analyzing profile:', {
+      message: error.message,
+      stack: error.stack,
+      url: req.body.url,
+      platform: platform || 'unknown'
+    });
     return res.status(500).json({ 
       error: 'Failed to analyze profile', 
-      details: error.message 
+      details: process.env.NODE_ENV === 'production' 
+        ? 'Internal server error' 
+        : error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
