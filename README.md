@@ -148,7 +148,6 @@ This project is licensed under the MIT License.
 
 ## 🔗 Links
 
-- **Live Demo**: [fake-account-detector.vercel.app](https://fake-account-detector.vercel.app)
 - **GitHub Repository**: [https://github.com/dbaidya811/Fake-Account-Detector](https://github.com/dbaidya811/Fake-Account-Detector)
 
 ## 📞 Support
@@ -161,4 +160,7 @@ If you encounter any issues:
 
 ---
 
-**Note**: This tool is for educational and research purposes. Always respect privacy and terms of service of social media platforms.
+**Note**: <div style="padding: 15px; background-color: #ffeb3b; color: #000; border-radius: 5px; font-weight: bold; border: 1px solid #f1c40f;">
+  ⚠️ <strong>Disclaimer:</strong> This tool is designed to help detect potentially fake accounts. <br>
+  Results may not always be 100% accurate. Use your own judgment and verify from multiple sources if needed.
+</div>
